@@ -1,33 +1,39 @@
+from datetime import datetime
+import time
 import cv2 as cv
 import cv2.aruco as aruco
 import numpy as np
-import time
+import pickle
 
 #--- Define Tag
 id_to_find  = 30
 marker_size  = 7 #- [cm]
 
 #--- Define fps variables
-number_frames = 30      # Check time every 30 frames
-start = 0.0             # time for frame 1
-stop = 0.0              # time for frame number_frames
-seconds = 0.0           # store the number_frames / (stop - start)
-frame_num  = -1         # number of frame
-fps_calculation = 0.0   # calculated fps
-frame_counter = 0       # number of frames to display message
-dist = 0.0              # distance to origin (in cm)
-vel = 0.0               # velocity acumulator
-delta = 0.0             # distance from frame to frame (in cm)
-min_delta = 0.1         # minimum distance in cm
-got_origin = 0          # FLAG: an origin had been defined
-vel_filter = 3          # Velocity averaging filter
-vel_disp = 0.0          # Final velocity to display in cm/s)
-i = 0                   # Counter used for velocity filtering
-recording_start = 0     # FLAG: start recording coordinates
-recording_stop = 0      # FLAG: stop recording coordinates
-L = []                  # Empty list of positions
-L1 = []                 # Empty list of positions
-current_time = 0.0      # Empty time variable
+number_frames = 30              # Check time every 30 frames
+start = 0.0                     # time for frame 1
+stop = 0.0                      # time for frame number_frames
+seconds = 0.0                   # store the number_frames / (stop - start)
+frame_num  = -1                 # number of frame
+fps_calculation = 0.0           # calculated fps
+frame_counter = 0               # number of frames to display message
+dist = 0.0                      # distance to origin (in cm)
+vel = 0.0                       # velocity acumulator
+delta = 0.0                     # distance from frame to frame (in cm)
+min_delta = 0.1                 # minimum distance in cm
+got_origin = 0                  # FLAG: an origin had been defined
+vel_filter = 3                  # Velocity averaging filter
+vel_disp = 0.0                  # Final velocity to display in cm/s)
+i = 0                           # Counter used for velocity filtering
+recording_start = 0             # FLAG: start recording coordinates
+recording_stop = 0              # FLAG: stop recording coordinates
+L_txt = []                      # Empty list of positions
+L_pkl = []                      # Empty list of positions
+L1 = []                         # Empty list of positions
+# Start a time variable
+# Format for time stamp "%Y-%m-%d,%H:%M:%S"+
+# Format for filename "%Y%m%d-%H%M%S"
+timestr = time.strftime("%Y-%m-%d,%H:%M:%S")
 
 #--- Get the camera calibration path
 workingFolder  = "/Users/mac/PycharmProjects/RTPositionAnalizer/"
@@ -56,7 +62,6 @@ start = time.time()
 while True:
     # -- Read the camera frame
     ret, frame = cap.read()
-    current_time = time.time()
 
     # -- FPS calculation and frame_num reset
     if frame_num >= number_frames:
@@ -153,19 +158,48 @@ while True:
 
         # If recording is enabled, save the current position to the list of positions
         if recording_start:
-            # Pack the current position data into a list
-            L1.append(tvec,rvec,ovec,fps_calculation,current_time)
+            # Pack the current position data into a human readable format
+            L1.append(str(tvec))
+            L1.append(str(rvec))
+            L1.append(str(ovec))
+            L1.append(fps_calculation)
+            timestr = datetime.now()
+            timestr = timestr.strftime("%Y-%m-%d,%H:%M:%S.%f")
+            L1.append(timestr)
+            # Append the current position to the list of positions and flush L1
+            L_txt.append(L1)
+            # Reset current position list
+            L1 = []
+            # Pack the current position data into a Python readable format
+            L1.append(tvec)
+            L1.append(rvec)
+            L1.append(ovec)
+            L1.append(fps_calculation)
+            L1.append(timestr)
             # Append the current position to the list of positions
-            L.append(L1)
+            L_pkl.append(L1)
+            # Reset current position list
+            L1 = []
             # Draw a red circle to inform recording is enabled
-            cv.circle(frame,(620, 445),5,(0, 0, 255))
+            cv.circle(frame, (620, 445), 5, (0, 0, 255), thickness=-1)
 
         # If recording is halted, save the list of position to a file with a time stamped name
         if recording_stop:
-            filename = workingFolder + "saved_paths/path_" + current_time + ".txt"
-            np.savetxt(filename, L, delimiter=',')
+            # Format for filename "%Y%m%d-%H%M%S"
+            timestr = time.strftime("%Y%m%d-%H%M%S")
+            filename = workingFolder + "saved_paths/path-" + timestr + ".txt"
+            # Save data to human readable txt file
+            F = open(filename, 'w')
+            F.write(str(L_txt))
+            F.close()
+            # Save data to pickle file
+            filename = workingFolder + "saved_paths/pickle/path-" + timestr + ".pkl"
+            F = open(filename, 'wb')
+            pickle.dump(L_pkl, F)
+            F.close()
             # Re-start lists
-            L = []
+            L_txt = []
+            L_pkl = []
             L1 = []
             # Record only one file per event
             recording_stop = 0
