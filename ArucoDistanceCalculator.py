@@ -18,16 +18,21 @@ frame_counter = 0       # number of frames to display message
 dist = 0.0              # distance to origin (in cm)
 vel = 0.0               # velocity acumulator
 delta = 0.0             # distance from frame to frame (in cm)
-min_delta = 0.4
+min_delta = 0.1         # minimum distance in cm
 got_origin = 0          # FLAG: an origin had been defined
 vel_filter = 3          # Velocity averaging filter
 vel_disp = 0.0          # Final velocity to display in cm/s)
 i = 0                   # Counter used for velocity filtering
+recording_start = 0     # FLAG: start recording coordinates
+recording_stop = 0      # FLAG: stop recording coordinates
+L = []                  # Empty list of positions
+L1 = []                 # Empty list of positions
+current_time = 0.0      # Empty time variable
 
 #--- Get the camera calibration path
-calib_path  = "/Users/mac/PycharmProjects/RTPositionAnalizer/"
-camera_matrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
-camera_distortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
+workingFolder  = "/Users/mac/PycharmProjects/RTPositionAnalizer/"
+camera_matrix   = np.loadtxt(workingFolder+'cameraMatrix.txt', delimiter=',')
+camera_distortion   = np.loadtxt(workingFolder+'cameraDistortion.txt', delimiter=',')
 
 #Load the dictionary that was used to generate the markers.
 dictionary = cv.aruco.Dictionary_get(cv.aruco.DICT_6X6_250)
@@ -51,6 +56,7 @@ start = time.time()
 while True:
     # -- Read the camera frame
     ret, frame = cap.read()
+    current_time = time.time()
 
     # -- FPS calculation and frame_num reset
     if frame_num >= number_frames:
@@ -91,29 +97,48 @@ while True:
         str_position = "POS: x=%4.1f  y=%4.1f  z=%4.1f" % (tvec[0], tvec[1], tvec[2])
         cv.putText(frame, str_position, (90, 470), font, 1, (0, 255, 0), 2, cv.LINE_AA)
 
-        # --- use 'o' to redefine origin
+        # -- use 'o' to redefine origin
         if key == ord('o'):
             frame_counter = 8  # display a message during this number of frames
             ovec = tvec  # make the current position the new origin
             got_origin = 1  # FLAG: new origin defined
 
-    # Calculate distance to origin
+        # -- If origin is defined, use 'r' to start recording coordinates
+        if key == ord('r'):
+            frame_counter = 8    #  display a message during this number of frames
+            recording_start = 1  # FLAG: start recording coordinates
+            recording_stop = 0   # FLAG: stop recording coordinates
+
+        # -- If origin is defined, use 'r' to stop recording coordinates
+        if key == ord('s'):
+            frame_counter = 8     # display a message during this number of frames
+            if recording_start != 0:
+                recording_stop = 1    # FLAG: start recording coordinates
+                recording_start = 0   # FLAG: start recording coordinates
+
+    # - - - - - - - - - - - - - - - If an origin is established - - - - - - - - - - - - - - - -
+
     if got_origin != 0:
+        # -- Calculate distance to origin
+        # Apply simple averaging filter to position
+        tvec = (pvec + tvec)/2
+
+        # Calculate euclidean distance from origin to current position
         dist = np.linalg.norm(tvec - ovec)
 
         # Display the distance to origin
         message_origin = "From Origin: %3.1f" % (dist)
         cv.putText(frame, message_origin, (0, 450), font, 1, (0, 255, 0), 2, cv.LINE_AA)
 
-    # Calculate instantaneous velocity
-    if got_origin != 0:
+        # -- Calculate instantaneous velocity
         delta = np.linalg.norm(tvec - pvec)
 
         # do not compute small data
-        if delta > min_delta:
+        if delta < min_delta:
             vel = 0.0
-
-        vel = vel + fps_calculation * delta
+        else:
+            # velocity calculation in
+            vel = fps_calculation * delta
 
         # increment velocity filter counter
         i += 1
@@ -124,10 +149,34 @@ while True:
             i = 0
             vel = 0
 
+        # - - - - - - - - - - - - - - - Record to file (if enabled - - - - - - - - - - - - - - - -
+
+        # If recording is enabled, save the current position to the list of positions
+        if recording_start:
+            # Pack the current position data into a list
+            L1.append(tvec,rvec,ovec,fps_calculation,current_time)
+            # Append the current position to the list of positions
+            L.append(L1)
+            # Draw a red circle to inform recording is enabled
+            cv.circle(frame,(620, 445),5,(0, 0, 255))
+
+        # If recording is halted, save the list of position to a file with a time stamped name
+        if recording_stop:
+            filename = workingFolder + "saved_paths/path_" + current_time + ".txt"
+            np.savetxt(filename, L, delimiter=',')
+            # Re-start lists
+            L = []
+            L1 = []
+            # Record only one file per event
+            recording_stop = 0
+
+        # - - - - - - - - - - - - - Add messages to current frame - - - - - - - - - - - - - - - -
+
         # Display instantaneous velocity
-        message_velocity = "Inst vel: %3.1f" % (vel_disp)
+        message_velocity = "Inst vel: %3.2f" % (vel_disp)
         cv.putText(frame, message_velocity, (180, 450), font, 1, (0, 255, 0), 2, cv.LINE_AA)
 
+    # TODO test if frames calculation can be done before calculating the distance to origin
 
     # -- Display the frames per second
     if seconds != 0.0:
@@ -138,10 +187,6 @@ while True:
     cv.putText(frame, str_fps, (0, 470), font, 1, (0, 255, 0), 2, cv.LINE_AA)
     frame_num += 1      # Frame number incremented by one
 
-
-
-
-
     if frame_counter > 0:
         message = "NEW ORIGIN: %4.1f, %4.1f, %4.1f" % (ovec[0], ovec[1], ovec[2])
         cv.putText(frame, message, (400, 470), font, 1, (0, 0, 255), 2, cv.LINE_AA)
@@ -150,7 +195,7 @@ while True:
     #--- Display the frame
     cv.imshow('frame', frame)
 
-    # save current vector as previous vector
+    # Save current vector as previous vector
     if ids is not None and ids[0] == id_to_find:
         pvec = tvec
 
@@ -159,3 +204,4 @@ while True:
         cap.release()
         cv.destroyAllWindows()
         break
+# - - - - - - - - - - - - End of Program - - - - - - - - - - - - - -
