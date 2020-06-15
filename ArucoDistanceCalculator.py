@@ -5,8 +5,6 @@ import cv2.aruco as aruco
 import numpy as np
 import pickle
 
-# TODO Clean code 
-
 # --- Define Tag
 id_to_find = 30
 marker_size = 7  # - [cm]
@@ -113,6 +111,8 @@ while True:
             frame_counter = 8  # display a message during this number of frames
             recording_start = 1  # FLAG: start recording coordinates
             recording_stop = 0  # FLAG: stop recording coordinates
+            # Start recording time
+            recording_time = time.time()
 
         # -- If origin is defined, use 'r' to stop recording coordinates
         if key == ord('s'):
@@ -162,6 +162,10 @@ while True:
             L1.append(str(tvec))
             L1.append(str(rvec))
             L1.append(str(ovec))
+            # Calculate frame time
+            frame_time = time.time() - recording_time
+            L1.append(frame_time)
+            # Append fps calculation
             L1.append(fps_calculation)
             timestr = datetime.now()
             timestr = timestr.strftime("%Y-%m-%d,%H:%M:%S.%f")
@@ -169,7 +173,7 @@ while True:
             # Append the current position to the list of positions and flush L1
             L_txt.append(L1)
             # Reset current position list
-            L1 = [tvec, rvec, ovec, fps_calculation, timestr]
+            L1 = [tvec, rvec, ovec, frame_time, fps_calculation, timestr]
             # Pack the current position data into a Python readable format
             # Append the current position to the list of positions
             L_pkl.append(L1)
@@ -180,12 +184,14 @@ while True:
 
         # If recording is halted, save the list of position to a file with a time stamped name
         if recording_stop:
+
             # Format for filename "%Y%m%d-%H%M%S"
             timestr = time.strftime("%Y%m%d-%H%M%S")
             filename = workingFolder + "saved_paths/path-" + timestr + ".txt"
             # Save data to human readable txt file
             F = open(filename, 'w')
-            F.write(str(L_txt) + '\n')
+            for line in L_txt:
+                F.write(str(line) + '\n')
             # Remove first '[' character
             F.seek(0, 0)
             F.write('\b')
@@ -210,8 +216,6 @@ while True:
         # Display instantaneous velocity
         message_velocity = "Inst vel: %3.2f" % vel_disp
         cv.putText(frame, message_velocity, (180, 450), font, 1, (0, 255, 0), 2, cv.LINE_AA)
-
-    # TODO test if frames calculation can be done before calculating the distance to origin
 
     # -- Display the frames per second
     if seconds != 0.0:
