@@ -103,7 +103,8 @@ while True:
         # -- use 'o' to redefine origin
         if key == ord('o'):
             frame_counter = 8  # display a message during this number of frames
-            ovec = tvec  # make the current position the new origin
+            t_ovec = tvec  # make the current position the new origin
+            r_ovec = rvec  # make the current rotation the new rotation origin
             got_origin = 1  # FLAG: new origin defined
 
         # -- If origin is defined, use 'r' to start recording coordinates
@@ -129,7 +130,7 @@ while True:
         tvec = (pvec + tvec) / 2
 
         # Calculate euclidean distance from origin to current position
-        dist = np.linalg.norm(tvec - ovec)
+        dist = np.linalg.norm(tvec - t_ovec)
 
         # Display the distance to origin
         message_origin = "From Origin: %3.1f" % dist
@@ -161,19 +162,24 @@ while True:
             # Pack the current position data into a human readable format
             L1.append(str(tvec))
             L1.append(str(rvec))
-            L1.append(str(ovec))
+            # Append the origin rotation and camera relative position
+            L1.append(str(t_ovec))
+            L1.append(str(r_ovec))
             # Calculate frame time
             frame_time = time.time() - recording_time
             L1.append(frame_time)
             # Append fps calculation
             L1.append(fps_calculation)
+            # Append velocity calculation
+            L1.append(vel_disp)
+            # Append recording time
             timestr = datetime.now()
             timestr = timestr.strftime("%Y-%m-%d,%H:%M:%S.%f")
             L1.append(timestr)
             # Append the current position to the list of positions and flush L1
             L_txt.append(L1)
             # Reset current position list
-            L1 = [tvec, rvec, ovec, frame_time, fps_calculation, timestr]
+            L1 = [tvec, rvec, t_ovec, r_ovec, frame_time, fps_calculation, vel_disp, timestr]
             # Pack the current position data into a Python readable format
             # Append the current position to the list of positions
             L_pkl.append(L1)
@@ -227,7 +233,7 @@ while True:
     frame_num += 1  # Frame number incremented by one
 
     if frame_counter > 0:
-        message = "NEW ORIGIN: %4.1f, %4.1f, %4.1f" % (ovec[0], ovec[1], ovec[2])
+        message = "NEW ORIGIN: %4.1f, %4.1f, %4.1f" % (t_ovec[0], t_ovec[1], t_ovec[2])
         cv.putText(frame, message, (400, 470), font, 1, (0, 0, 255), 2, cv.LINE_AA)
         frame_counter -= 1
 
