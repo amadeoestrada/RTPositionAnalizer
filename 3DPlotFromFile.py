@@ -1,3 +1,26 @@
+#!/usr/bin/env python
+
+"""
+ArucoDistanceCalculator
+This purpose of this program is to process the output file from ArUcoDistanceCalculator and produce human
+readable plots. It produces 4 plots:
+    · Absolute position Plot: This plot displays all the marker's position on the X, Y, and Z axis. The darker
+        color shows the start. The yellowish color denotes the final position. This is a 3D plot.
+    · Homography Plot: This plot transforms the camera plane parallel to the ArUco marker plane. This means
+        that the movement will be offset from the 'origin' (set with the 'o' key in the ArucoDistanceCalcultator)
+        This plot shows the horizontal and vertical at their respective X and Y axis, but on the Z axis the
+        program outputs time. This is a 3D plot.
+        · X Plot: From the homography calculation, the program shows the horizontal movement in the X axis and
+            time in the Y axis. This is a 2D plot.
+        · Y Plot:From the homography calculation, the program shows the vertical movement in the X axis and
+            time in the Y axis. This is a 2D plot.
+For the input, this program simply searches for the latest output from AruCoDistanceCalculator. Right-click
+each plot to display the options. Exit any plot with 'q'. To exit the program gracefully, exit from all plots.
+"""
+
+__author__ = "Amadeo Estrada"
+__date__ = "16/06/2020"
+
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -127,7 +150,7 @@ plt.suptitle('Movement Along X Axis Plot')
 
 # -- Set movement along Y Axis 2D Plot
 fig = plt.figure()
-plt.plot(z_points, y_points,   'go')
+plt.plot(frame_time, y_points,   'go')
 plt.xlabel('Time (s)')
 plt.ylabel('Y Distance (cm)')
 plt.suptitle('Movement Along Y Axis Plot')

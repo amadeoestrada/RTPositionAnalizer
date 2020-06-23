@@ -1,3 +1,22 @@
+#!/usr/bin/env python
+
+"""
+ArucoDistanceCalculator
+This purpose of this program is to identify ArUco markers, estimate a position in the space in reference
+to the camera, and record the position and instantaneous velocity. With an command, the program makes a
+dated report of all the positions recorded. All measurements are reported in cm. Velocity is reported
+in cm/s. The date format is yyyy/mm/dd
+
+List of commands:
+-------------------
+Press 'o'       To stablish the origin of the movement
+Press 'q'       To exit the program gracefully
+Press 'r'       To start recording movement. The program does not limit the file size automatically!
+Press 's'       To stop recording and generate the report files.
+"""
+__author__ = "Amadeo Estrada"
+__date__ = "02/06/2020"
+
 from datetime import datetime
 import time
 import cv2 as cv
